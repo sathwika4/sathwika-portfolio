@@ -11,7 +11,8 @@ function App() {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
   const [roleIndex, setRoleIndex] = useState(0)
   const [typedRole, setTypedRole] = useState('')
-  const [contactStatus, setContactStatus] = useState<'idle' | 'error'>('idle')
+  const [contactStatus, setContactStatus] = useState<'idle' | 'prepared'>('idle')
+  const [scrollProgress, setScrollProgress] = useState(0)
   const reduceMotion = useReducedMotion()
 
   useEffect(() => {
@@ -35,6 +36,20 @@ function App() {
     return () => observer.disconnect()
   }, [])
 
+  useEffect(() => {
+    const updateProgress = () => {
+      const maxScroll = document.documentElement.scrollHeight - window.innerHeight
+      setScrollProgress(maxScroll > 0 ? (window.scrollY / maxScroll) * 100 : 0)
+    }
+    updateProgress()
+    window.addEventListener('scroll', updateProgress, { passive: true })
+    window.addEventListener('resize', updateProgress)
+    return () => {
+      window.removeEventListener('scroll', updateProgress)
+      window.removeEventListener('resize', updateProgress)
+    }
+  }, [])
+
   const navItems = useMemo(() => ['home', 'about', 'skills', 'projects', 'achievements', 'education', 'contact'], [])
   const scrollTo = (id: string) => { document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' }); setMenuOpen(false) }
   const reveal = { initial: { opacity: 0, y: 24 }, whileInView: { opacity: 1, y: 0 }, viewport: { once: true, margin: '-80px' }, transition: { duration: 0.6 } }
@@ -47,24 +62,26 @@ function App() {
     const name = String(form.get('name') ?? '')
     const email = String(form.get('email') ?? '')
     window.location.href = `mailto:sathwikabejjankii@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(`Name: ${name}\nEmail: ${email}\n\n${message}`)}`
-    setContactStatus('idle')
+    setContactStatus('prepared')
   }
 
   return (
     <div className="app-shell">
+      <a className="skip-link" href="#main-content">Skip to content</a>
+      <div className="scroll-progress" aria-hidden="true" style={{ transform: `scaleX(${scrollProgress / 100})` }} />
       <div className="noise" aria-hidden="true" />
       <header className="nav-wrap">
         <nav className="nav container" aria-label="Main navigation">
           <button className="brand" onClick={() => scrollTo('home')} aria-label="Back to home"><span>BS</span><i /></button>
-          <div className={`nav-links ${menuOpen ? 'open' : ''}`}>
-            {navItems.map((item) => <button key={item} className={activeSection === item ? 'active' : ''} onClick={() => scrollTo(item)}>{item}</button>)}
+          <div id="primary-navigation" className={`nav-links ${menuOpen ? 'open' : ''}`}>
+            {navItems.map((item) => <button key={item} className={activeSection === item ? 'active' : ''} aria-current={activeSection === item ? 'page' : undefined} onClick={() => scrollTo(item)}>{item}</button>)}
             <button className="nav-connect" onClick={() => scrollTo('contact')}>Let’s connect <ArrowUpRight size={15} /></button>
           </div>
-          <button className="menu-toggle" onClick={() => setMenuOpen(!menuOpen)} aria-label={menuOpen ? 'Close menu' : 'Open menu'}>{menuOpen ? <X /> : <Menu />}</button>
+          <button className="menu-toggle" onClick={() => setMenuOpen(!menuOpen)} aria-label={menuOpen ? 'Close menu' : 'Open menu'} aria-expanded={menuOpen} aria-controls="primary-navigation">{menuOpen ? <X /> : <Menu />}</button>
         </nav>
       </header>
 
-      <main>
+      <main id="main-content">
         <section id="home" className="hero container">
           <div className="hero-copy">
             <motion.div {...reveal} className="eyebrow"><span className="eyebrow-dot" /> AVAILABLE FOR OPPORTUNITIES <span className="eyebrow-line" /></motion.div>
@@ -77,7 +94,7 @@ function App() {
           </div>
           <motion.div className="hero-visual" initial={{ opacity: 0, scale: .94 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: .9 }}>
             <div className="orbit orbit-one" /><div className="orbit orbit-two" />
-            <div className="portrait-frame"><div className="portrait-glow" /><img src="/sathwika.png" alt="Sathwika Bejjanki smiling in a pink dress" /></div>
+            <div className="portrait-frame"><div className="portrait-glow" /><img src="/sathwika.png" alt="Sathwika Bejjanki smiling in a pink dress" width="768" height="1024" loading="eager" /></div>
             <div className="float-tag tag-python">Python <span>✦</span></div><div className="float-tag tag-ai">AI / ML <span>◈</span></div><div className="float-tag tag-react">React <span>⌁</span></div>
             <div className="visual-caption"><span>01</span><i /><span>curiosity → creation</span></div>
           </motion.div>
@@ -97,12 +114,12 @@ function App() {
 
         <motion.section id="education" className="section container education" {...reveal}><div className="section-label">05 / EDUCATION</div><div className="education-card"><div><span className="mini-label">CURRENTLY LEARNING</span><h2>Computer Science<br /><em>+ AI / ML</em></h2></div><div className="education-details"><div><span>2024 — 2028</span><strong>SR University</strong><p>B.Tech · Computer Science and Engineering<br />Artificial Intelligence and Machine Learning</p></div><div><span>ACADEMIC RECORD</span><strong>9.4 / 10 CGPA</strong><p>Resonance Junior College<br />Intermediate · 849 / 1000</p></div></div></div></motion.section>
 
-        <motion.section id="contact" className="section container contact" {...reveal}><div className="section-label">06 / CONTACT</div><div className="contact-grid"><div><h2>Let’s build<br /><em>something together.</em></h2><p>Have an interesting idea, collaboration opportunity, or technical discussion? I’d love to connect.</p><a className="email-link" href={socialLinks.email}>sathwikabejjankii@gmail.com <ArrowUpRight size={17} /></a><div className="contact-links"><a href={socialLinks.github} target="_blank" rel="noreferrer">GitHub <ArrowUpRight size={15} /></a><a href={socialLinks.linkedin} target="_blank" rel="noreferrer">LinkedIn <ArrowUpRight size={15} /></a></div></div><form className="contact-form" onSubmit={submitContact}><label>Name<input name="name" required placeholder="Your name" /></label><label>Email<input name="email" type="email" required placeholder="you@example.com" /></label><label>Subject<input name="subject" required placeholder="What’s on your mind?" /></label><label>Message<textarea name="message" required rows={4} placeholder="Tell me a little about it..." /></label>{contactStatus === 'error' && <p className="form-note">Your email app couldn’t be opened from this form. Please use the email link directly.</p>}<button className="button primary" type="submit">Send message <ArrowUpRight size={17} /></button></form></div></motion.section>
+        <motion.section id="contact" className="section container contact" {...reveal}><div className="section-label">06 / CONTACT</div><div className="contact-grid"><div><h2>Let’s build<br /><em>something together.</em></h2><p>Have an interesting idea, collaboration opportunity, or technical discussion? I’d love to connect.</p><a className="email-link" href={socialLinks.email}>sathwikabejjankii@gmail.com <ArrowUpRight size={17} /></a><div className="contact-links"><a href={socialLinks.github} target="_blank" rel="noreferrer">GitHub <ArrowUpRight size={15} /></a><a href={socialLinks.linkedin} target="_blank" rel="noreferrer">LinkedIn <ArrowUpRight size={15} /></a></div></div><form className="contact-form" onSubmit={submitContact}><label>Name<input name="name" required placeholder="Your name" /></label><label>Email<input name="email" type="email" required placeholder="you@example.com" /></label><label>Subject<input name="subject" required placeholder="What’s on your mind?" /></label><label>Message<textarea name="message" required rows={4} placeholder="Tell me a little about it..." /></label>{contactStatus === 'prepared' && <p className="form-note prepared-note" aria-live="polite">Your email app should open with the message prepared. If it does not, use the email link beside this form.</p>}<button className="button primary" type="submit">Send message <ArrowUpRight size={17} /></button></form></div></motion.section>
       </main>
 
       <footer className="footer container"><div><span className="brand footer-brand"><span>BS</span></span><p>Designed & built by Sathwika Bejjanki</p></div><div className="footer-right"><span>© {new Date().getFullYear()} Sathwika</span><button onClick={() => scrollTo('home')}>Back to top <ArrowUp size={15} /></button></div></footer>
 
-      <AnimatePresence>{selectedProject && <motion.div className="modal-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelectedProject(null)}><motion.div className="project-modal" initial={{ opacity: 0, y: 22 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 22 }} onClick={(event) => event.stopPropagation()}><button className="modal-close" onClick={() => setSelectedProject(null)} aria-label="Close project details"><X /></button><span className={`modal-accent ${selectedProject.accent}`}>{selectedProject.category}</span><h2>{selectedProject.title}</h2><p className="modal-description">{selectedProject.description}</p><div className="modal-columns"><div><span className="mini-label">TECHNOLOGIES</span><div className="project-tech">{selectedProject.technologies.map((technology) => <span key={technology}>{technology}</span>)}</div></div><div><span className="mini-label">DETAILS</span><ul>{selectedProject.details.map((detail) => <li key={detail}><Check size={15} />{detail}</li>)}</ul></div></div>{selectedProject.achievement && <div className="achievement-note">✦ {selectedProject.achievement}</div>}<div className="modal-footer"><span>Links will be added when available.</span><button className="button secondary" onClick={() => setSelectedProject(null)}>Close <X size={15} /></button></div></motion.div></motion.div>}</AnimatePresence>
+      <AnimatePresence>{selectedProject && <motion.div className="modal-backdrop" role="presentation" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelectedProject(null)}><motion.div className="project-modal" role="dialog" aria-modal="true" aria-labelledby="project-modal-title" initial={{ opacity: 0, y: 22 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 22 }} onClick={(event) => event.stopPropagation()}><button className="modal-close" onClick={() => setSelectedProject(null)} aria-label="Close project details"><X /></button><span className={`modal-accent ${selectedProject.accent}`}>{selectedProject.category}</span><h2 id="project-modal-title">{selectedProject.title}</h2><p className="modal-description">{selectedProject.description}</p><div className="modal-columns"><div><span className="mini-label">TECHNOLOGIES</span><div className="project-tech">{selectedProject.technologies.map((technology) => <span key={technology}>{technology}</span>)}</div></div><div><span className="mini-label">DETAILS</span><ul>{selectedProject.details.map((detail) => <li key={detail}><Check size={15} />{detail}</li>)}</ul></div></div>{selectedProject.achievement && <div className="achievement-note">✦ {selectedProject.achievement}</div>}<div className="modal-footer"><span>Links will be added when available.</span><button className="button secondary" onClick={() => setSelectedProject(null)}>Close <X size={15} /></button></div></motion.div></motion.div>}</AnimatePresence>
     </div>
   )
 }
